@@ -16,10 +16,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* FIX SFONDO: L'app nasce tutta BLU per coprire il buco di iOS in basso */
         html, body { background-color: #2563eb; } 
-        
-        /* Diventa GRIGIA solo dopo aver fatto l'accesso */
         html.app-ready, body.app-ready { background-color: #f3f4f6; }
 
         body { -webkit-tap-highlight-color: transparent; touch-action: pan-y; }
@@ -35,6 +32,593 @@
 </head>
 <body class="text-gray-800 font-sans antialiased pb-24 min-h-[100dvh]">
 
+    <div id="user-modal" class="fixed top-0 left-0 right-0 bottom-0 bg-blue-600 z-[100] flex flex-col justify-center items-center px-6 hidden">
+        <h2 class="text-3xl font-bold text-white mb-2 text-center">Benvenuto!</h2>
+        <p class="text-blue-100 mb-8 text-center text-sm">Seleziona il tuo nome per personalizzare il calendario.</p>
+        
+        <div class="grid grid-cols-2 gap-4 w-full max-w-sm">
+            <button onclick="setUser('Antonio')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Antonio</button>
+            <button onclick="setUser('Claudia')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Claudia</button>
+            <button onclick="setUser('Dario')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Dario</button>
+            <button onclick="setUser('Paolo')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Paolo</button>
+        </div>
+    </div>
+
+    <header id="main-header" class="bg-blue-600 text-white shadow-md sticky top-0 z-50 safe-padding-top">
+        <div class="px-4 py-3 flex justify-between items-center w-full">
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl font-bold tracking-tight">Turni ECH</h1>
+                <select id="year-selector" onchange="changeYear(this.value)" class="bg-blue-700 text-white border border-blue-500 rounded px-1.5 py-0.5 text-sm outline-none font-semibold">
+                    <option value="2026" selected>2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                    <option value="2029">2029</option>
+                    <option value="2030">2030</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="openUserSelection()" id="user-greeting" class="text-xs bg-blue-700 px-2 py-1.5 rounded border border-blue-500 font-medium whitespace-nowrap">
+                    👤 Nome
+                </button>
+                <button class="relative p-1 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="absolute top-0 right-0 inline-block w-2.5 h-2.5 bg-red-500 border-2 border-blue-600 rounded-full"></span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex bg-blue-700 text-sm font-semibold">
+            <button onclick="setView('day')" id="btn-day" class="flex-1 tab-btn text-center border-b-4 border-white transition-colors">Giorno</button>
+            <button onclick="setView('week')" id="btn-week" class="flex-1 tab-btn text-center border-b-4 border-transparent text-blue-200 hover:text-white transition-colors">Settimana</button>
+            <button onclick="setView('month')" id="btn-month" class="flex-1 tab-btn text-center border-b-4 border-transparent text-blue-200 hover:text-white transition-colors">Mese</button>
+        </div>
+    </header>
+
+    <main class="p-4 max-w-md mx-auto" id="app-content">
+        <div id="view-day" style="display: none;"></div>
+        <div id="view-week" style="display: none;"></div>
+        <div id="view-month" style="display: none;"></div>
+    </main>
+
+    <button id="btn-back-today" onclick="scrollToToday(false)" class="hidden fixed right-4 bg-blue-600 text-white px-5 py-3 rounded-full shadow-[0_8px_16px_rgba(37,99,235,0.4)] z-50 transition-transform active:scale-95 flex items-center gap-2" style="bottom: max(1rem, env(safe-area-inset-bottom) + 1rem);">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span class="font-bold text-sm tracking-wide">Oggi</span>
+    </button>
+
+    <script>
+        document.addEventListener('touchmove', function(event) {
+            if (event.scale !== 1) { event.preventDefault(); }
+        }, { passive: false });
+
+        let realToday = new Date(2026, 3, 5); // IN PRODUZIONE Metti "new Date()"
+        let selectedYear = 2026;
+        let generatedYear = null; 
+        let currentView = 'day';
+        let currentUser = null;
+
+          // --- DATABASE TURNI ---
+        const turniData = {
+            // Settimana 1 e 2
+            "2026-04-03": { mattina: "Antonio / Dario (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-04-04": { mattina: "Claudia / Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-04-05": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-04-06": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-04-07": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo / Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-04-08": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-04-09": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-04-10": { mattina: "Claudia / Paolo (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-04-11": { mattina: "Dario / Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-04-12": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            // Settimana 3
+            "2026-04-13": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-04-14": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio / Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-04-15": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-04-16": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-04-17": { mattina: "Dario / Antonio (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-04-18": { mattina: "Paolo / Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-04-19": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            // Settimana 4
+            "2026-04-20": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-04-21": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia / Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-04-22": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-04-23": { mattina: "Dario (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-04-24": { mattina: "Paolo / Claudia (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-04-25": { mattina: "Antonio / Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-04-26": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            // Settimana 5
+            "2026-04-27": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-04-28": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo / Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-04-29": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-04-30": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-05-01": { mattina: "Antonio / Paolo (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-02": { mattina: "Claudia / Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-03": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            // Settimana 6
+            "2026-05-04": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-23:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-05-05": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario / Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-06": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-05-07": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-05-08": { mattina: "Claudia / Dario (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-09": { mattina: "Paolo / Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-05-10": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            // Settimana 7
+            "2026-05-11": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-05-12": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio / Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-13": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-05-14": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-05-15": { mattina: "Paolo / Antonio (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-05-16": { mattina: "Dario / Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-17": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            // Settimana 8
+            "2026-05-18": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-05-19": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia / Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-20": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-05-21": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-05-22": { mattina: "Dario / Claudia (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-23": { mattina: "Antonio / Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-24": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            // Settimana 9
+            "2026-05-25": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-05-26": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia / Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-27": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-05-28": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-05-29": { mattina: "Antonio / Claudia (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-30": { mattina: "Dario / Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-31": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            // Settimana 10
+            "2026-06-01": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-06-02": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo / Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-03": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-06-04": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-06-05": { mattina: "Dario / Paolo (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-06-06": { mattina: "Claudia / Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-06-07": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            // Settimana 11
+            "2026-06-08": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-06-09": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio / Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-06-10": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-06-11": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-06-12": { mattina: "Claudia / Antonio (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-06-13": { mattina: "Paolo / Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-14": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            // Settimana 12
+            "2026-06-15": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-06-16": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario / Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-06-17": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-06-18": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-06-19": { mattina: "Paolo / Dario (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-20": { mattina: "Antonio / Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-06-21": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            // Settimana 13
+            "2026-06-22": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-06-23": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo / Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-06-24": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-06-25": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-06-26": { mattina: "Antonio / Paolo (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-27": { mattina: "Dario / Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-06-28": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            // Settimana 14
+            "2026-06-29": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-06-30": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia / Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-01": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-07-02": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-03": { mattina: "Dario / Claudia (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-07-04": { mattina: "Paolo / Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-07-05": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            // Settimana 15
+            "2026-07-06": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-07-07": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio / Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-07-08": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-09": { mattina: "Dario (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-07-10": { mattina: "Paolo / Antonio (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-07-11": { mattina: "Claudia / Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-12": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            // Settimana 16
+            "2026-07-13": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-07-14": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario / Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-07-15": { mattina: "Dario (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-07-16": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-07-17": { mattina: "Claudia / Dario (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-18": { mattina: "Antonio / Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-07-19": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            // Settimana 17
+            "2026-07-20": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-07-21": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia / Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-22": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-07-23": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-24": { mattina: "Antonio / Claudia (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-07-25": { mattina: "Paolo / Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-07-26": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            // Settimana 18
+            "2026-07-27": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-07-28": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario / Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-07-29": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-30": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-07-31": { mattina: "Paolo / Dario (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-01": { mattina: "Claudia / Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-02": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            // Settimana 19
+            "2026-08-03": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-08-04": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio / Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-08-05": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-08-06": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-08-07": { mattina: "Claudia / Antonio (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-08": { mattina: "Dario / Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-08-09": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            // Settimana 20
+            "2026-08-10": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-08-11": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo / Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-12": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-08-13": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-08-14": { mattina: "Dario / Paolo (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-08-15": { mattina: "Antonio / Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-08-16": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            // Settimana 21
+            "2026-08-17": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-08-18": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario / Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-19": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-08-20": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-08-21": { mattina: "Antonio / Dario (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-08-22": { mattina: "Paolo / Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-23": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            // Settimana 22
+            "2026-08-24": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-23:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-08-25": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia / Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-08-26": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-08-27": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-08-28": { mattina: "Paolo / Claudia (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-29": { mattina: "Dario / Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-30": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            // Settimana 23
+            "2026-08-31": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-09-01": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio / Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-09-02": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-09-03": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-09-04": { mattina: "Dario / Antonio (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-09-05": { mattina: "Claudia / Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-09-06": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            // Settimana 24
+            "2026-09-07": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-09-08": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo / Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-09-09": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-09-10": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-09-11": { mattina: "Claudia / Paolo (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-09-12": { mattina: "Antonio / Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-09-13": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+        };
+        // ----------------------
+
+        function getIsoDateString(date) {
+            const d = new Date(date);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function getDisplayDateString(date) {
+            const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            let str = new Date(date).toLocaleDateString('it-IT', options);
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function findShiftForPerson(dateIso, personName) {
+            const t = turniData[dateIso];
+            if (!t) return "-";
+            if (t.mattina.includes(personName)) return "MAT";
+            if (t.pomeriggio.includes(personName)) return "POM";
+            if (t.sera.includes(personName)) return "SER";
+            if (t.off.includes(personName)) return "OFF";
+            return "-";
+        }
+
+        function getColoredShift(shiftStr) {
+            if (shiftStr === "MAT") return '<span class="text-yellow-600 font-bold">MAT</span>';
+            if (shiftStr === "POM") return '<span class="text-orange-500 font-bold">POM</span>';
+            if (shiftStr === "SER") return '<span class="text-indigo-600 font-bold">SER</span>';
+            if (shiftStr === "OFF") return '<span class="text-gray-400 font-bold text-xs">OFF</span>';
+            if (shiftStr === "-") return '<span class="text-gray-300">-</span>';
+            return shiftStr;
+        }
+
+        function checkFirstLoad() {
+            currentUser = localStorage.getItem('ech_user');
+            if (!currentUser) {
+                document.getElementById('user-modal').classList.remove('hidden');
+            } else {
+                setAppReady();
+                updateUserUI();
+                setView('day'); 
+            }
+        }
+
+        function openUserSelection() {
+            document.documentElement.classList.remove('app-ready');
+            document.body.classList.remove('app-ready');
+            document.getElementById('user-modal').classList.remove('hidden');
+        }
+
+        function setAppReady() {
+            document.documentElement.classList.add('app-ready');
+            document.body.classList.add('app-ready');
+        }
+
+        window.setUser = function(name) {
+            currentUser = name;
+            localStorage.setItem('ech_user', name);
+            document.getElementById('user-modal').classList.add('hidden');
+            setAppReady(); 
+            updateUserUI();
+            generatedYear = null;
+            setView(currentView); 
+        }
+
+        function updateUserUI() {
+            document.getElementById('user-greeting').innerText = `👤 ${currentUser}`;
+        }
+
+        window.changeYear = function(year) {
+            selectedYear = parseInt(year);
+            setView(currentView);
+        }
+
+        // --- RENDER HTML ---
+        function renderDayHTML() {
+            let html = '';
+            const todayIso = getIsoDateString(realToday);
+            let d = new Date(selectedYear, 0, 1);
+            while (d.getFullYear() === selectedYear) {
+                const dateIso = getIsoDateString(d);
+                const isToday = dateIso === todayIso;
+                const turni = turniData[dateIso] || { mattina: "-", pomeriggio: "-", sera: "-", off: "-" };
+                const cardClass = isToday ? "today-card bg-white rounded-xl shadow-md p-4 mb-4" : "bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4";
+                const badge = isToday ? '<span class="ml-2 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">Oggi</span>' : '';
+                const myShift = findShiftForPerson(dateIso, currentUser);
+                const matClass = myShift === 'MAT' ? 'bg-yellow-50 font-bold border border-yellow-200 rounded' : '';
+                const pomClass = myShift === 'POM' ? 'bg-orange-50 font-bold border border-orange-200 rounded' : '';
+                const serClass = myShift === 'SER' ? 'bg-indigo-50 font-bold border border-indigo-200 rounded' : '';
+                const offClass = myShift === 'OFF' ? 'bg-gray-100 font-bold border border-gray-300 rounded' : '';
+                html += `
+                <div id="${isToday ? 'day-current' : 'day-' + dateIso}" class="${cardClass}">
+                    <h2 class="text-lg font-bold text-gray-800 border-b pb-2 mb-3 flex items-center justify-between">
+                        <div class="capitalize">${getDisplayDateString(d)}</div>
+                        ${badge}
+                    </h2>
+                    <div class="space-y-2">
+                        <div class="flex items-start ${matClass} p-1">
+                            <div class="bg-yellow-100 text-yellow-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">MAT</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.mattina === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.mattina}</div>
+                        </div>
+                        <div class="flex items-start ${pomClass} p-1">
+                            <div class="bg-orange-100 text-orange-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">POM</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.pomeriggio === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.pomeriggio}</div>
+                        </div>
+                        <div class="flex items-start ${serClass} p-1">
+                            <div class="bg-indigo-100 text-indigo-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">SER</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.sera === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.sera}</div>
+                        </div>
+                        <div class="flex items-start ${offClass} p-1">
+                            <div class="bg-gray-200 text-gray-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">OFF</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.off === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.off}</div>
+                        </div>
+                    </div>
+                </div>`;
+                d.setDate(d.getDate() + 1);
+            }
+            return html;
+        }
+
+        function renderWeekHTML() {
+            const todayIso = getIsoDateString(realToday);
+            let html = '';
+            let currentMonday = new Date(selectedYear, 0, 1);
+            let firstDayIndex = currentMonday.getDay() || 7;
+            currentMonday.setDate(currentMonday.getDate() - (firstDayIndex - 1));
+            while (currentMonday.getFullYear() === selectedYear || (currentMonday.getFullYear() < selectedYear && currentMonday.getMonth() === 11)) {
+                let weekEnd = new Date(currentMonday);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                let isCurrentWeek = (realToday >= currentMonday && realToday <= weekEnd);
+                const titleStr = currentMonday.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+                const boxClass = isCurrentWeek ? "today-card bg-white rounded-xl mb-6 overflow-hidden" : "bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-6";
+                const boxId = isCurrentWeek ? "weekbox-current" : `weekbox-${getIsoDateString(currentMonday)}`;
+                html += `
+                <div id="${boxId}" class="${boxClass}">
+                    <div class="${isCurrentWeek ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'} px-4 py-2 text-sm font-bold border-b border-gray-200">
+                        Settimana del ${titleStr}
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500 uppercase bg-white border-b">
+                            <tr>
+                                <th class="px-2 py-3 text-center border-r">Data</th>
+                                <th class="px-2 py-3 text-center ${currentUser==='Antonio'?'bg-blue-50 text-blue-700':''}">AG</th>
+                                <th class="px-2 py-3 text-center ${currentUser==='Claudia'?'bg-blue-50 text-blue-700':''}">CS</th>
+                                <th class="px-2 py-3 text-center ${currentUser==='Dario'?'bg-blue-50 text-blue-700':''}">DS</th>
+                                <th class="px-2 py-3 text-center ${currentUser==='Paolo'?'bg-blue-50 text-blue-700':''}">PS</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                for (let i = 0; i < 7; i++) {
+                    let d = new Date(currentMonday);
+                    d.setDate(d.getDate() + i);
+                    const isoDate = getIsoDateString(d);
+                    const isToday = isoDate === todayIso;
+                    const dayName = new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric' }).format(d);
+                    const ag = findShiftForPerson(isoDate, "Antonio");
+                    const cs = findShiftForPerson(isoDate, "Claudia");
+                    const ds = findShiftForPerson(isoDate, "Dario");
+                    const ps = findShiftForPerson(isoDate, "Paolo");
+                    const rowClass = isToday ? "today-row" : "border-b hover:bg-gray-50";
+                    const label = isToday ? '<br><span class="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded shadow-sm">OGGI</span>' : '';
+                    html += `
+                        <tr class="${rowClass}">
+                            <td class="px-2 py-3 text-center border-r font-medium text-gray-900 leading-tight capitalize">
+                                ${dayName} ${label}
+                            </td>
+                            <td class="px-2 py-3 text-center ${currentUser==='Antonio'?'bg-blue-50/50 border-x border-blue-100':''}">${getColoredShift(ag)}</td>
+                            <td class="px-2 py-3 text-center ${currentUser==='Claudia'?'bg-blue-50/50 border-x border-blue-100':''}">${getColoredShift(cs)}</td>
+                            <td class="px-2 py-3 text-center ${currentUser==='Dario'?'bg-blue-50/50 border-x border-blue-100':''}">${getColoredShift(ds)}</td>
+                            <td class="px-2 py-3 text-center ${currentUser==='Paolo'?'bg-blue-50/50 border-x border-blue-100':''}">${getColoredShift(ps)}</td>
+                        </tr>`;
+                }
+                html += `</tbody></table></div>`;
+                currentMonday.setDate(currentMonday.getDate() + 7);
+            }
+            return html;
+        }
+
+        function renderMonthHTML() {
+            const todayIso = getIsoDateString(realToday);
+            let html = '';
+            for (let m = 0; m < 12; m++) {
+                let loopMonth = new Date(selectedYear, m, 1);
+                const monthName = loopMonth.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+                const isCurrentMonth = (selectedYear === realToday.getFullYear() && m === realToday.getMonth());
+                let startDay = loopMonth.getDay();
+                if (startDay === 0) startDay = 7;
+                const daysInMonth = new Date(selectedYear, m + 1, 0).getDate();
+                const boxClass = isCurrentMonth ? "today-card bg-white rounded-xl p-4 mb-6" : "bg-white rounded-xl shadow-md p-4 border border-gray-200 mb-6";
+                const boxId = isCurrentMonth ? "monthbox-current" : `monthbox-${selectedYear}-${m}`;
+                html += `
+                <div id="${boxId}" class="${boxClass}">
+                    <div class="text-center font-bold text-lg ${isCurrentMonth ? 'text-blue-800' : 'text-gray-800'} mb-4 capitalize border-b pb-2">
+                        ${monthName}
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 mb-2">
+                        <div>LUN</div><div>MAR</div><div>MER</div><div>GIO</div><div>VEN</div><div>SAB</div><div>DOM</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1">`;
+                for (let i = 1; i < startDay; i++) {
+                    html += `<div class="p-2"></div>`;
+                }
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const loopDateIso = `${selectedYear}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const shift = findShiftForPerson(loopDateIso, currentUser);
+                    const isToday = loopDateIso === todayIso;
+                    let dotClass = "bg-gray-50 text-transparent"; 
+                    if (shift === "MAT") dotClass = "bg-yellow-400 text-yellow-900 shadow-sm";
+                    if (shift === "POM") dotClass = "bg-orange-400 text-orange-900 shadow-sm";
+                    if (shift === "SER") dotClass = "bg-indigo-500 text-white shadow-sm";
+                    if (shift === "OFF") dotClass = "bg-gray-200 text-gray-600 border border-gray-300";
+                    const cellStyle = isToday ? "today-cell" : "bg-white border border-gray-100 rounded-lg";
+                    html += `
+                    <div class="${cellStyle} p-1 flex flex-col items-center justify-center h-14 relative">
+                        <span class="text-xs font-semibold text-gray-700 ${isToday ? 'text-blue-700' : ''}">${day}</span>
+                        <div class="mt-1 w-full text-[10px] font-bold rounded flex items-center justify-center py-0.5 ${dotClass}">
+                            ${shift !== "-" ? shift : ""}
+                        </div>
+                    </div>`;
+                }
+                html += `</div></div>`;
+            }
+            html += `
+            <div class="pt-2 pb-6 flex flex-wrap justify-center gap-3 text-xs font-semibold text-gray-600">
+                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-400 mr-1 shadow-sm"></span> MAT</div>
+                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-400 mr-1 shadow-sm"></span> POM</div>
+                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-indigo-500 mr-1 shadow-sm"></span> SER</div>
+                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-gray-200 border border-gray-300 mr-1"></span> OFF</div>
+            </div>`;
+            return html;
+        }
+
+        // --- SISTEMA ZERO FLICKER ---
+        window.setView = function(view) {
+            currentView = view;
+            
+            ['day', 'week', 'month'].forEach(v => {
+                const btn = document.getElementById(`btn-${v}`);
+                if (v === currentView) {
+                    btn.classList.replace('border-transparent', 'border-white');
+                    btn.classList.replace('text-blue-200', 'text-white');
+                } else {
+                    btn.classList.replace('border-white', 'border-transparent');
+                    btn.classList.replace('text-white', 'text-blue-200');
+                }
+            });
+
+            if (generatedYear !== selectedYear) {
+                document.getElementById('view-day').innerHTML = renderDayHTML();
+                document.getElementById('view-week').innerHTML = renderWeekHTML();
+                document.getElementById('view-month').innerHTML = renderMonthHTML();
+                generatedYear = selectedYear;
+            }
+
+            ['day', 'week', 'month'].forEach(v => {
+                document.getElementById(`view-${v}`).style.display = (v === view) ? 'block' : 'none';
+            });
+
+            // SCROLL MATEMATICO SINCRONO: nessun setTimeout, zero sfarfallio.
+            scrollToToday(true);
+            evaluateFabVisibility();
+        }
+
+        window.scrollToToday = function(instant = false) {
+            if (selectedYear !== realToday.getFullYear()) {
+                document.getElementById('year-selector').value = realToday.getFullYear();
+                changeYear(realToday.getFullYear());
+                return;
+            }
+            
+            let targetId = null;
+            if(currentView === 'day') targetId = `day-current`;
+            if(currentView === 'week') targetId = `weekbox-current`;
+            if(currentView === 'month') targetId = `monthbox-current`;
+
+            if(targetId) {
+                const el = document.getElementById(targetId);
+                if(el) {
+                    // Calcola l'altezza dell'header blu in cima
+                    const headerHeight = document.getElementById('main-header').offsetHeight;
+                    
+                    // Trova la posizione esatta e sottrai l'header (più 10px di margine per estetica)
+                    const y = el.getBoundingClientRect().top + window.scrollY - headerHeight - 10;
+                    
+                    if (instant) {
+                        window.scrollTo({ top: y, behavior: 'auto' });
+                    } else {
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                    }
+                }
+            }
+        }
+
+        function evaluateFabVisibility() {
+            const btn = document.getElementById('btn-back-today');
+            if (selectedYear !== realToday.getFullYear()) {
+                btn.classList.remove('hidden');
+                return;
+            }
+
+            let targetId = null;
+            if(currentView === 'day') targetId = `day-current`;
+            if(currentView === 'week') targetId = `weekbox-current`;
+            if(currentView === 'month') targetId = `monthbox-current`;
+            
+            const todayElement = document.getElementById(targetId);
+            if (!todayElement) {
+                btn.classList.add('hidden');
+                return;
+            }
+
+            const rect = todayElement.getBoundingClientRect();
+            // Aggiusto i margini di visibilità considerando l'header fisso
+            const headerHeight = document.getElementById('main-header').offsetHeight;
+            if (rect.bottom < headerHeight + 50 || rect.top > window.innerHeight - 100) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+        
+        window.addEventListener('scroll', evaluateFabVisibility);
+
+        // Init App
+        checkFirstLoad();
+
+    </script>
+</body>
+</html>
     <div id="user-modal" class="fixed top-0 left-0 right-0 bottom-0 bg-blue-600 z-[100] flex flex-col justify-center items-center px-6 hidden">
         <h2 class="text-3xl font-bold text-white mb-2 text-center">Benvenuto!</h2>
         <p class="text-blue-100 mb-8 text-center text-sm">Seleziona il tuo nome per personalizzare il calendario.</p>
