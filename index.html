@@ -14,14 +14,16 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { -webkit-tap-highlight-color: transparent; }
+        /* Blocca il pinch-to-zoom a livello CSS */
+        body { -webkit-tap-highlight-color: transparent; touch-action: pan-y; }
         .safe-padding-top { padding-top: env(safe-area-inset-top); }
         .safe-padding-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* Stili per l'evidenziazione di OGGI */
         .today-card { border: 2px solid #3b82f6 !important; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5); }
         .today-row { background-color: #eff6ff; font-weight: bold; }
         .today-cell { background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 0.5rem; font-weight: bold; }
         
-        /* Modifica altezza tab */
         .tab-btn { padding-top: 1rem; padding-bottom: 1rem; }
     </style>
 </head>
@@ -43,9 +45,12 @@
         <div class="px-4 py-3 flex justify-between items-center w-full">
             <div class="flex items-center gap-2">
                 <h1 class="text-xl font-bold tracking-tight">Turni ECH</h1>
-                <select id="year-selector" class="bg-blue-700 text-white border border-blue-500 rounded px-1.5 py-0.5 text-sm outline-none font-semibold">
+                <select id="year-selector" onchange="changeYear(this.value)" class="bg-blue-700 text-white border border-blue-500 rounded px-1.5 py-0.5 text-sm outline-none font-semibold">
                     <option value="2026" selected>2026</option>
                     <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                    <option value="2029">2029</option>
+                    <option value="2030">2030</option>
                 </select>
             </div>
             
@@ -69,8 +74,7 @@
         </div>
     </header>
 
-    <main class="p-4 max-w-md mx-auto" id="app-content">
-        </main>
+    <main class="p-4 max-w-md mx-auto" id="app-content"></main>
 
     <button id="btn-back-today" onclick="scrollToToday()" class="hidden fixed bottom-24 right-4 bg-blue-600 text-white p-3.5 rounded-full shadow-lg z-50 transition-transform active:scale-95">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,7 +83,13 @@
     </button>
 
     <script>
-        let currentDate = new Date(2026, 3, 5); // 5 Aprile 2026 simulata
+        // JS Extra per bloccare lo zoom su iOS Safari in modo forzato
+        document.addEventListener('touchmove', function(event) {
+            if (event.scale !== 1) { event.preventDefault(); }
+        }, { passive: false });
+
+        let realToday = new Date(2026, 3, 5); // Simulata: 5 Aprile 2026. Metti 'new Date()' per la data reale.
+        let selectedYear = 2026;
         let currentView = 'day';
         let currentUser = null;
 
@@ -303,10 +313,11 @@
             if (shiftStr === "POM") return '<span class="text-orange-500 font-bold">POM</span>';
             if (shiftStr === "SER") return '<span class="text-indigo-600 font-bold">SER</span>';
             if (shiftStr === "OFF") return '<span class="text-gray-400 font-bold text-xs">OFF</span>';
+            if (shiftStr === "-") return '<span class="text-gray-300">-</span>';
             return shiftStr;
         }
 
-        // --- GESTIONE UTENTE ---
+        // --- GESTIONE UTENTE E ANNO ---
         function checkFirstLoad() {
             currentUser = localStorage.getItem('ech_user');
             if (!currentUser) {
@@ -323,27 +334,33 @@
             document.getElementById('user-modal').classList.add('hidden');
             updateUserUI();
             setView(currentView); 
-            window.scrollTo(0,0);
         }
 
         function updateUserUI() {
             document.getElementById('user-greeting').innerText = `👤 ${currentUser}`;
         }
 
+        window.changeYear = function(year) {
+            selectedYear = parseInt(year);
+            setView(currentView);
+            // Selezionando un anno diverso, andiamo in cima
+            if (selectedYear !== realToday.getFullYear()) {
+                window.scrollTo(0,0);
+            }
+        }
+
         // --- RENDER VISTE ---
         function renderDayView() {
             let html = '';
-            const todayIso = getIsoDateString(currentDate);
-            const allDates = Object.keys(turniData).sort();
-
-            if (allDates.length === 0) {
-                contentDiv.innerHTML = '<p class="text-center mt-10">Nessun turno disponibile nel database.</p>';
-                return;
-            }
-
-            allDates.forEach(dateIso => {
+            const todayIso = getIsoDateString(realToday);
+            
+            // Loop per tutto l'anno selezionato
+            let d = new Date(selectedYear, 0, 1);
+            while (d.getFullYear() === selectedYear) {
+                const dateIso = getIsoDateString(d);
                 const isToday = dateIso === todayIso;
-                const turni = turniData[dateIso];
+                const turni = turniData[dateIso] || { mattina: "-", pomeriggio: "-", sera: "-", off: "-" };
+                
                 const cardClass = isToday ? "today-card bg-white rounded-xl shadow-md p-4 mb-4" : "bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4";
                 const badge = isToday ? '<span class="ml-2 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">Oggi</span>' : '';
 
@@ -354,58 +371,64 @@
                 const offClass = myShift === 'OFF' ? 'bg-gray-100 font-bold border border-gray-300 rounded' : '';
 
                 html += `
-                <div id="day-${dateIso}" class="${cardClass}">
+                <div id="${isToday ? 'day-current' : 'day-' + dateIso}" class="${cardClass}">
                     <h2 class="text-lg font-bold text-gray-800 border-b pb-2 mb-3 flex items-center justify-between">
-                        <div class="capitalize">${getDisplayDateString(dateIso)}</div>
+                        <div class="capitalize">${getDisplayDateString(d)}</div>
                         ${badge}
                     </h2>
                     <div class="space-y-2">
                         <div class="flex items-start ${matClass} p-1">
                             <div class="bg-yellow-100 text-yellow-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">MAT</div>
-                            <div class="flex-1 text-sm pt-0.5 text-gray-700">${turni.mattina}</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.mattina === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.mattina}</div>
                         </div>
                         <div class="flex items-start ${pomClass} p-1">
                             <div class="bg-orange-100 text-orange-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">POM</div>
-                            <div class="flex-1 text-sm pt-0.5 text-gray-700">${turni.pomeriggio}</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.pomeriggio === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.pomeriggio}</div>
                         </div>
                         <div class="flex items-start ${serClass} p-1">
                             <div class="bg-indigo-100 text-indigo-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">SER</div>
-                            <div class="flex-1 text-sm pt-0.5 text-gray-700">${turni.sera}</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.sera === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.sera}</div>
                         </div>
                         <div class="flex items-start ${offClass} p-1">
                             <div class="bg-gray-200 text-gray-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">OFF</div>
-                            <div class="flex-1 text-sm pt-0.5 text-gray-700">${turni.off}</div>
+                            <div class="flex-1 text-sm pt-0.5 ${turni.off === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.off}</div>
                         </div>
                     </div>
                 </div>`;
-            });
+                
+                d.setDate(d.getDate() + 1);
+            }
 
             contentDiv.innerHTML = html;
-            setTimeout(() => { scrollToToday(); }, 100);
+            if (selectedYear === realToday.getFullYear()) {
+                setTimeout(() => { scrollToToday(); }, 100);
+            }
         }
 
         function renderWeekView() {
-            const allDatesStr = Object.keys(turniData).sort();
-            if (allDatesStr.length === 0) return;
+            const todayIso = getIsoDateString(realToday);
+            let html = '';
 
-            const todayIso = getIsoDateString(currentDate);
-            const firstDate = new Date(allDatesStr[0]);
-            const lastDate = new Date(allDatesStr[allDatesStr.length - 1]);
-
-            // Trova il lunedì della prima settimana
-            let currentMonday = new Date(firstDate);
+            // Trova il lunedì della prima settimana dell'anno
+            let currentMonday = new Date(selectedYear, 0, 1);
             let firstDayIndex = currentMonday.getDay() || 7;
             currentMonday.setDate(currentMonday.getDate() - (firstDayIndex - 1));
 
-            let html = '';
-
-            // Genera tutte le settimane fino alla data finale
-            while (currentMonday <= lastDate) {
+            // Genera tutte le settimane
+            while (currentMonday.getFullYear() === selectedYear || (currentMonday.getFullYear() < selectedYear && currentMonday.getMonth() === 11)) {
+                
+                // Controlla se la settimana corrente contiene "Oggi"
+                let weekEnd = new Date(currentMonday);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                let isCurrentWeek = (realToday >= currentMonday && realToday <= weekEnd);
+                
                 const titleStr = currentMonday.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+                const boxClass = isCurrentWeek ? "today-card bg-white rounded-xl mb-6 overflow-hidden" : "bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-6";
+                const boxId = isCurrentWeek ? "weekbox-current" : `weekbox-${getIsoDateString(currentMonday)}`;
                 
                 html += `
-                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-6">
-                    <div class="bg-gray-100 px-4 py-2 text-sm text-gray-700 font-bold border-b border-gray-200">
+                <div id="${boxId}" class="${boxClass}">
+                    <div class="${isCurrentWeek ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'} px-4 py-2 text-sm font-bold border-b border-gray-200">
                         Settimana del ${titleStr}
                     </div>
                     <table class="w-full text-sm text-left">
@@ -436,7 +459,7 @@
                     const label = isToday ? '<br><span class="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded shadow-sm">OGGI</span>' : '';
 
                     html += `
-                        <tr id="weekday-${isoDate}" class="${rowClass}">
+                        <tr class="${rowClass}">
                             <td class="px-2 py-3 text-center border-r font-medium text-gray-900 leading-tight capitalize">
                                 ${dayName} ${label}
                             </td>
@@ -448,43 +471,34 @@
                 }
 
                 html += `</tbody></table></div>`;
-                currentMonday.setDate(currentMonday.getDate() + 7); // Vai alla settimana successiva
+                currentMonday.setDate(currentMonday.getDate() + 7);
             }
             contentDiv.innerHTML = html;
 
-            // Scroll alla settimana corrente se "Oggi" è nei dati
-            setTimeout(() => {
-                const todayElement = document.getElementById(`weekday-${todayIso}`);
-                if (todayElement) todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
+            if (selectedYear === realToday.getFullYear()) {
+                setTimeout(() => { scrollToToday(); }, 100);
+            }
         }
 
         function renderMonthView() {
-            const allDatesStr = Object.keys(turniData).sort();
-            if (allDatesStr.length === 0) return;
-
-            const todayIso = getIsoDateString(currentDate);
-            const firstDate = new Date(allDatesStr[0]);
-            const lastDate = new Date(allDatesStr[allDatesStr.length - 1]);
-
-            // Inizia dal 1° giorno del primo mese nei dati
-            let loopMonth = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-            let endMonth = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
-
+            const todayIso = getIsoDateString(realToday);
             let html = '';
 
-            while (loopMonth <= endMonth) {
-                const year = loopMonth.getFullYear();
-                const month = loopMonth.getMonth();
+            for (let m = 0; m < 12; m++) {
+                let loopMonth = new Date(selectedYear, m, 1);
                 const monthName = loopMonth.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+                const isCurrentMonth = (selectedYear === realToday.getFullYear() && m === realToday.getMonth());
                 
                 let startDay = loopMonth.getDay();
                 if (startDay === 0) startDay = 7;
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const daysInMonth = new Date(selectedYear, m + 1, 0).getDate();
+
+                const boxClass = isCurrentMonth ? "today-card bg-white rounded-xl p-4 mb-6" : "bg-white rounded-xl shadow-md p-4 border border-gray-200 mb-6";
+                const boxId = isCurrentMonth ? "monthbox-current" : `monthbox-${selectedYear}-${m}`;
 
                 html += `
-                <div id="monthbox-${year}-${month}" class="bg-white rounded-xl shadow-md p-4 border border-gray-200 mb-6">
-                    <div class="text-center font-bold text-lg text-gray-800 mb-4 capitalize border-b pb-2">
+                <div id="${boxId}" class="${boxClass}">
+                    <div class="text-center font-bold text-lg ${isCurrentMonth ? 'text-blue-800' : 'text-gray-800'} mb-4 capitalize border-b pb-2">
                         ${monthName}
                     </div>
                     
@@ -498,7 +512,7 @@
                 }
 
                 for (let day = 1; day <= daysInMonth; day++) {
-                    const loopDateIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const loopDateIso = `${selectedYear}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const shift = findShiftForPerson(loopDateIso, currentUser);
                     const isToday = loopDateIso === todayIso;
                     
@@ -520,10 +534,8 @@
                 }
 
                 html += `</div></div>`;
-                loopMonth.setMonth(loopMonth.getMonth() + 1); // Vai al mese successivo
             }
             
-            // Legenda globale fissa in basso
             html += `
             <div class="pt-2 pb-6 flex flex-wrap justify-center gap-3 text-xs font-semibold text-gray-600">
                 <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-400 mr-1 shadow-sm"></span> MAT</div>
@@ -534,21 +546,24 @@
 
             contentDiv.innerHTML = html;
 
-            // Scroll al mese corrente se presente
-            setTimeout(() => {
-                const currentMonthBox = document.getElementById(`monthbox-${currentDate.getFullYear()}-${currentDate.getMonth()}`);
-                if (currentMonthBox) currentMonthBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
+            if (selectedYear === realToday.getFullYear()) {
+                setTimeout(() => { scrollToToday(); }, 100);
+            }
         }
 
         // --- GESTIONE SCROLL "TORNA A OGGI" ---
         window.scrollToToday = function() {
-            const todayIso = getIsoDateString(currentDate);
-            let targetId = null;
+            // Se siamo in un anno diverso, forziamo il ritorno all'anno corrente
+            if (selectedYear !== realToday.getFullYear()) {
+                document.getElementById('year-selector').value = realToday.getFullYear();
+                changeYear(realToday.getFullYear());
+                return; // changeYear ricarica la vista e poi richiama lo scroll automatico
+            }
             
-            if(currentView === 'day') targetId = `day-${todayIso}`;
-            if(currentView === 'week') targetId = `weekday-${todayIso}`;
-            if(currentView === 'month') targetId = `monthbox-${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+            let targetId = null;
+            if(currentView === 'day') targetId = `day-current`;
+            if(currentView === 'week') targetId = `weekbox-current`;
+            if(currentView === 'month') targetId = `monthbox-current`;
 
             if(targetId) {
                 const el = document.getElementById(targetId);
@@ -556,19 +571,31 @@
             }
         }
 
+        // Listener per la visibilità del tasto FAB
         window.addEventListener('scroll', () => {
             const btn = document.getElementById('btn-back-today');
-            const todayIso = getIsoDateString(currentDate);
-            const todayElement = document.getElementById(currentView === 'day' ? `day-${todayIso}` : null); // Per ora limitiamo il tasto solo alla vista Giorno
             
-            if (currentView !== 'day' || !todayElement) {
+            // Se siamo in un anno diverso da quello reale, mostra sempre il pulsante per tornare indietro
+            if (selectedYear !== realToday.getFullYear()) {
+                btn.classList.remove('hidden');
+                return;
+            }
+
+            let targetId = null;
+            if(currentView === 'day') targetId = `day-current`;
+            if(currentView === 'week') targetId = `weekbox-current`;
+            if(currentView === 'month') targetId = `monthbox-current`;
+            
+            const todayElement = document.getElementById(targetId);
+            
+            if (!todayElement) {
                 btn.classList.add('hidden');
                 return;
             }
 
             const rect = todayElement.getBoundingClientRect();
-            // Mostra il pulsante se "Oggi" è sopra o sotto lo schermo visibile
-            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+            // Mostra il pulsante se l'elemento target esce dallo schermo (sopra o sotto)
+            if (rect.bottom < 150 || rect.top > window.innerHeight - 150) {
                 btn.classList.remove('hidden');
             } else {
                 btn.classList.add('hidden');
