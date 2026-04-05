@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Turni Lavoro</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Turni">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/000000/FFFFFF/?text=Turni">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        /* Safe area per iPhone (notch/dynamic island) */
+        .safe-padding-top { padding-top: env(safe-area-inset-top); }
+        .safe-padding-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans antialiased pb-20">
+
+    <header class="bg-blue-600 text-white shadow-md sticky top-0 z-50 safe-padding-top">
+        <div class="px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold">I Miei Turni</h1>
+            <div id="current-date-display" class="text-sm font-medium"></div>
+        </div>
+        <div class="flex bg-blue-700 text-sm font-semibold">
+            <button onclick="setView('day')" id="btn-day" class="flex-1 py-2 text-center border-b-4 border-white transition-colors">Oggi</button>
+            <button onclick="setView('week')" id="btn-week" class="flex-1 py-2 text-center border-b-4 border-transparent text-blue-200 hover:text-white transition-colors">Settimana</button>
+            <button onclick="setView('month')" id="btn-month" class="flex-1 py-2 text-center border-b-4 border-transparent text-blue-200 hover:text-white transition-colors">Mese</button>
+        </div>
+    </header>
+
+    <main class="p-4 max-w-md mx-auto" id="app-content">
+        </main>
+
+    <script>
+        // --- DATABASE TURNI ---
+        // Ho estratto i dati dal tuo PDF per la fine della Settimana 1 e l'inizio della Settimana 2.
+        // Puoi continuare ad aggiungere i giorni seguendo questa struttura.
+        const turniData = {
+            "2026-04-03": { mattina: "Antonio / Dario (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-04-04": { mattina: "Claudia / Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-04-05": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-04-06": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-04-07": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo / Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-04-08": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-04-09": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-04-10": { mattina: "Claudia / Paolo (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-04-11": { mattina: "Dario / Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-04-12": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            // Settimana 3: dal 13 aprile
+            "2026-04-13": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-04-14": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio / Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-04-15": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-04-16": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-04-17": { mattina: "Dario / Antonio (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-04-18": { mattina: "Paolo / Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-04-19": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+
+            // Settimana 4: dal 20 aprile
+            "2026-04-20": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-04-21": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia / Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-04-22": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-04-23": { mattina: "Dario (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-04-24": { mattina: "Paolo / Claudia (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-04-25": { mattina: "Antonio / Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-04-26": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+
+            // Settimana 5: dal 27 aprile
+            "2026-04-27": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-04-28": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo / Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-04-29": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-04-30": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-05-01": { mattina: "Antonio / Paolo (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-02": { mattina: "Claudia / Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-03": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+
+            // Settimana 6: dal 04 maggio
+            "2026-05-04": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-23:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-05-05": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario / Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-06": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-05-07": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-05-08": { mattina: "Claudia / Dario (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-09": { mattina: "Paolo / Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-05-10": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+
+            // Settimana 7: dal 11 maggio
+            "2026-05-11": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-05-12": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio / Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-13": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-05-14": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-05-15": { mattina: "Paolo / Antonio (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-05-16": { mattina: "Dario / Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-17": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+
+            // Settimana 8: dal 18 maggio
+            "2026-05-18": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-05-19": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia / Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-20": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-05-21": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-05-22": { mattina: "Dario / Claudia (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-23": { mattina: "Antonio / Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-24": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+
+            // Settimana 9: dal 25 maggio
+            "2026-05-25": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-05-26": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia / Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-05-27": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-05-28": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-05-29": { mattina: "Antonio / Claudia (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-05-30": { mattina: "Dario / Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-05-31": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+
+            // Settimana 10: dal 01 giugno
+            "2026-06-01": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-06-02": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo / Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-03": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-06-04": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-06-05": { mattina: "Dario / Paolo (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-06-06": { mattina: "Claudia / Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-06-07": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+
+            // Settimana 11: dal 08 giugno
+            "2026-06-08": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-06-09": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio / Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-06-10": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-06-11": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-06-12": { mattina: "Claudia / Antonio (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-06-13": { mattina: "Paolo / Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-14": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+
+            // Settimana 12: dal 15 giugno
+            "2026-06-15": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-06-16": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario / Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-06-17": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-06-18": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-06-19": { mattina: "Paolo / Dario (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-20": { mattina: "Antonio / Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-06-21": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+
+            // Settimana 13: dal 22 giugno
+            "2026-06-22": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Antonio" },
+            "2026-06-23": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo / Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-06-24": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-06-25": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-06-26": { mattina: "Antonio / Paolo (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-06-27": { mattina: "Dario / Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-06-28": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+
+            // Settimana 14: dal 29 giugno
+            "2026-06-29": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-06-30": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia / Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-01": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-07-02": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-03": { mattina: "Dario / Claudia (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-07-04": { mattina: "Paolo / Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-07-05": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+
+            // Settimana 15: dal 06 luglio
+            "2026-07-06": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-07-07": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio / Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-07-08": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-09": { mattina: "Dario (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-07-10": { mattina: "Paolo / Antonio (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-07-11": { mattina: "Claudia / Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-12": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+
+            // Settimana 16: dal 13 luglio
+            "2026-07-13": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-07-14": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario / Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-07-15": { mattina: "Dario (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-07-16": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-07-17": { mattina: "Claudia / Dario (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-18": { mattina: "Antonio / Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-07-19": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+
+            // Settimana 17: dal 20 luglio
+            "2026-07-20": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-07-21": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia / Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-07-22": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-07-23": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-24": { mattina: "Antonio / Claudia (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-07-25": { mattina: "Paolo / Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-07-26": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+
+            // Settimana 18: dal 27 luglio
+            "2026-07-27": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Paolo" },
+            "2026-07-28": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario / Antonio (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-07-29": { mattina: "Dario (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-07-30": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-07-31": { mattina: "Paolo / Dario (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-01": { mattina: "Claudia / Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-02": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+
+            // Settimana 19: dal 03 agosto
+            "2026-08-03": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Claudia" },
+            "2026-08-04": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio / Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-08-05": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Dario" },
+            "2026-08-06": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-08-07": { mattina: "Claudia / Antonio (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-08": { mattina: "Dario / Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-08-09": { mattina: "Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+
+            // Settimana 20: dal 10 agosto
+            "2026-08-10": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-08-11": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo / Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-12": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-08-13": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-08-14": { mattina: "Dario / Paolo (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-08-15": { mattina: "Antonio / Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-08-16": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+
+            // Settimana 21: dal 17 agosto
+            "2026-08-17": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Antonio" },
+            "2026-08-18": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario / Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-19": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-08-20": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (11:00-18:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-08-21": { mattina: "Antonio / Dario (08:00-15:00)", pomeriggio: "Paolo (15:00-22:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-08-22": { mattina: "Paolo / Dario (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-23": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+
+            // Settimana 22: dal 24 agosto
+            "2026-08-24": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Dario (14:00-23:00)", sera: "Claudia (18:00-01:00)", off: "Paolo" },
+            "2026-08-25": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia / Antonio (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-08-26": { mattina: "Claudia (08:00-15:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+            "2026-08-27": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (11:00-18:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-08-28": { mattina: "Paolo / Claudia (08:00-15:00)", pomeriggio: "Dario (15:00-22:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-08-29": { mattina: "Dario / Claudia (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-08-30": { mattina: "Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+
+            // Settimana 23: dal 31 agosto
+            "2026-08-31": { mattina: "Paolo (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Dario" },
+            "2026-09-01": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio / Paolo (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-09-02": { mattina: "Antonio (08:00-15:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "Claudia" },
+            "2026-09-03": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (11:00-18:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-09-04": { mattina: "Dario / Antonio (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
+            "2026-09-05": { mattina: "Claudia / Antonio (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-09-06": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+
+            // Settimana 24: dal 07 settembre
+            "2026-09-07": { mattina: "Dario (07:00-14:00)", pomeriggio: "Antonio (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Claudia" },
+            "2026-09-08": { mattina: "Claudia (07:00-14:00)", pomeriggio: "Paolo / Dario (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
+            "2026-09-09": { mattina: "Paolo (08:00-15:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "Antonio" },
+            "2026-09-10": { mattina: "Dario (08:00-15:00)", pomeriggio: "Claudia (11:00-18:00)", sera: "Antonio (18:00-01:00)", off: "Paolo" },
+            "2026-09-11": { mattina: "Claudia / Paolo (08:00-15:00)", pomeriggio: "Antonio (15:00-22:00)", sera: "Dario (18:00-01:00)", off: "-" },
+            "2026-09-12": { mattina: "Antonio / Paolo (07:00-14:00)", pomeriggio: "Dario (14:00-21:00)", sera: "Claudia (18:00-01:00)", off: "-" },
+            "2026-09-13": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
+        };
+
+        // Imposta la data odierna simulata (5 Aprile 2026) in base al contesto
+        let currentDate = new Date(2026, 3, 5); // Mese è 0-indexed (3 = Aprile)
+        let currentView = 'day';
+
+        const contentDiv = document.getElementById('app-content');
+        const dateDisplay = document.getElementById('current-date-display');
+
+        // Formatta la data (es: "2026-04-05")
+        function getIsoDateString(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Formatta la data in italiano (es: "Domenica 5 Apr")
+        function getDisplayDateString(date) {
+            const options = { weekday: 'long', day: 'numeric', month: 'short' };
+            let str = date.toLocaleDateString('it-IT', options);
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Crea la card HTML per un singolo giorno
+        function createDayCard(dateStr, turni, showDateHeader = false) {
+            const dateObj = new Date(dateStr);
+            const title = showDateHeader ? getDisplayDateString(dateObj) : "Turni di Oggi";
+            const badge = showDateHeader && dateStr === getIsoDateString(currentDate) ? '<span class="ml-2 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded">Oggi</span>' : '';
+            
+            if (!turni) {
+                return `
+                <div class="bg-white rounded-xl shadow p-4 mb-4 border border-gray-200">
+                    <h2 class="text-lg font-bold text-gray-700 border-b pb-2 mb-3">${title} ${badge}</h2>
+                    <p class="text-gray-500 italic">Nessun dato disponibile per questo giorno.</p>
+                </div>`;
+            }
+
+            return `
+                <div class="bg-white rounded-xl shadow-md p-4 mb-4 border border-gray-100">
+                    <h2 class="text-lg font-bold text-gray-800 border-b pb-2 mb-3 flex items-center">${title} ${badge}</h2>
+                    <div class="space-y-3">
+                        <div class="flex items-start">
+                            <div class="bg-yellow-100 text-yellow-800 rounded p-2 text-center w-12 mr-3 font-bold text-xs">MAT</div>
+                            <div class="flex-1 text-sm pt-1 text-gray-700">${turni.mattina}</div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-orange-100 text-orange-800 rounded p-2 text-center w-12 mr-3 font-bold text-xs">POM</div>
+                            <div class="flex-1 text-sm pt-1 text-gray-700">${turni.pomeriggio}</div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-indigo-100 text-indigo-800 rounded p-2 text-center w-12 mr-3 font-bold text-xs">SER</div>
+                            <div class="flex-1 text-sm pt-1 text-gray-700">${turni.sera}</div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-gray-100 text-gray-800 rounded p-2 text-center w-12 mr-3 font-bold text-xs">OFF</div>
+                            <div class="flex-1 text-sm pt-1 text-gray-700 font-semibold">${turni.off}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDay() {
+            const isoDate = getIsoDateString(currentDate);
+            const turni = turniData[isoDate];
+            contentDiv.innerHTML = createDayCard(isoDate, turni, false);
+        }
+
+        function renderWeek() {
+            let html = '';
+            // Trova il lunedì della settimana corrente
+            let startOfWeek = new Date(currentDate);
+            let day = startOfWeek.getDay() || 7; // Converti domenica (0) in 7
+            if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
+
+            for (let i = 0; i < 7; i++) {
+                let d = new Date(startOfWeek);
+                d.setDate(d.getDate() + i);
+                const isoDate = getIsoDateString(d);
+                html += createDayCard(isoDate, turniData[isoDate], true);
+            }
+            contentDiv.innerHTML = html;
+        }
+
+        function renderMonth() {
+            // Per semplicità, in vista mese renderizziamo i prossimi 14 giorni inseriti a database
+            let html = '<h3 class="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Prossimi Turni</h3>';
+            let d = new Date(currentDate);
+            
+            for (let i = 0; i < 14; i++) {
+                let tempDate = new Date(d);
+                tempDate.setDate(tempDate.getDate() + i);
+                const isoDate = getIsoDateString(tempDate);
+                if(turniData[isoDate]) {
+                     html += createDayCard(isoDate, turniData[isoDate], true);
+                }
+            }
+            contentDiv.innerHTML = html;
+        }
+
+        function updateTabs() {
+            ['day', 'week', 'month'].forEach(v => {
+                const btn = document.getElementById(`btn-${v}`);
+                if (v === currentView) {
+                    btn.classList.replace('border-transparent', 'border-white');
+                    btn.classList.replace('text-blue-200', 'text-white');
+                } else {
+                    btn.classList.replace('border-white', 'border-transparent');
+                    btn.classList.replace('text-white', 'text-blue-200');
+                }
+            });
+        }
+
+        window.setView = function(view) {
+            currentView = view;
+            updateTabs();
+            
+            if (view === 'day') renderDay();
+            if (view === 'week') renderWeek();
+            if (view === 'month') renderMonth();
+            
+            window.scrollTo(0,0);
+        }
+
+        // Init
+        dateDisplay.innerText = getDisplayDateString(currentDate);
+        setView('day');
+
+    </script>
+</body>
+</html>
