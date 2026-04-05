@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
     <meta name="theme-color" content="#2563eb">
     <title>Turni ECH</title>
     
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="icon" type="image/png" href="icon.png">
-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Turni ECH">
@@ -18,29 +16,99 @@
     <style>
         html, body { background-color: #2563eb; } 
         html.app-ready, body.app-ready { background-color: #f3f4f6; }
-
-        body { -webkit-tap-highlight-color: transparent; touch-action: pan-y; }
+        body { -webkit-tap-highlight-color: transparent; touch-action: pan-y manipulation; -webkit-user-select: none; user-select: none; }
         .safe-padding-top { padding-top: env(safe-area-inset-top); }
         .safe-padding-bottom { padding-bottom: env(safe-area-inset-bottom); }
         
         .today-card { border: 2px solid #3b82f6 !important; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5); }
         .today-row { background-color: #eff6ff; font-weight: bold; }
         .today-cell { background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 0.5rem; font-weight: bold; }
-        
         .tab-btn { padding-top: 1rem; padding-bottom: 1rem; }
+
+        /* Stile Tasti Tastierino */
+        .keypad-btn { background-color: #f3f4f6; border-radius: 9999px; font-size: 1.5rem; font-weight: 600; color: #1f2937; display: flex; align-items: center; justify-content: center; height: 4.5rem; width: 4.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background-color 0.1s; margin: auto; }
+        .keypad-btn:active { background-color: #d1d5db; }
     </style>
 </head>
 <body class="text-gray-800 font-sans antialiased pb-24 min-h-[100dvh]">
 
     <div id="user-modal" style="display: none;" class="fixed top-0 left-0 right-0 bottom-0 bg-blue-600 z-[100] flex-col justify-center items-center px-6">
         <h2 class="text-3xl font-bold text-white mb-2 text-center">Benvenuto!</h2>
-        <p class="text-blue-100 mb-8 text-center text-sm">Seleziona il tuo nome per personalizzare il calendario.</p>
-        
+        <p class="text-blue-100 mb-8 text-center text-sm">Seleziona il tuo nome.</p>
         <div class="grid grid-cols-2 gap-4 w-full max-w-sm">
-            <button onclick="setUser('Antonio')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Antonio</button>
-            <button onclick="setUser('Claudia')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Claudia</button>
-            <button onclick="setUser('Dario')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Dario</button>
-            <button onclick="setUser('Paolo')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform text-lg">Paolo</button>
+            <button onclick="setUser('Antonio')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 text-lg">Antonio</button>
+            <button onclick="setUser('Claudia')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 text-lg">Claudia</button>
+            <button onclick="setUser('Dario')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 text-lg">Dario</button>
+            <button onclick="setUser('Paolo')" class="bg-white text-blue-700 font-bold py-4 rounded-xl shadow-lg active:scale-95 text-lg">Paolo</button>
+        </div>
+    </div>
+
+    <div id="pin-modal" style="display: none;" class="fixed top-0 left-0 right-0 bottom-0 bg-white z-[110] flex-col items-center pt-20 px-6 safe-padding-top safe-padding-bottom">
+        <div class="w-full flex justify-end mb-8">
+            <button onclick="closePin()" class="text-blue-600 font-bold px-4 py-2 bg-blue-50 rounded-full">Chiudi</button>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Inserisci PIN</h2>
+        <p class="text-gray-500 text-sm mb-6">Area riservata amministrazione</p>
+        
+        <div class="flex gap-4 mb-10 h-6">
+            <div id="pin-1" class="w-4 h-4 rounded-full border-2 border-gray-300"></div>
+            <div id="pin-2" class="w-4 h-4 rounded-full border-2 border-gray-300"></div>
+            <div id="pin-3" class="w-4 h-4 rounded-full border-2 border-gray-300"></div>
+            <div id="pin-4" class="w-4 h-4 rounded-full border-2 border-gray-300"></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-y-6 w-full max-w-[280px]">
+            <button onclick="pressPin('1')" class="keypad-btn">1</button>
+            <button onclick="pressPin('2')" class="keypad-btn">2</button>
+            <button onclick="pressPin('3')" class="keypad-btn">3</button>
+            <button onclick="pressPin('4')" class="keypad-btn">4</button>
+            <button onclick="pressPin('5')" class="keypad-btn">5</button>
+            <button onclick="pressPin('6')" class="keypad-btn">6</button>
+            <button onclick="pressPin('7')" class="keypad-btn">7</button>
+            <button onclick="pressPin('8')" class="keypad-btn">8</button>
+            <button onclick="pressPin('9')" class="keypad-btn">9</button>
+            <div></div>
+            <button onclick="pressPin('0')" class="keypad-btn">0</button>
+            <button onclick="deletePin()" class="keypad-btn bg-gray-200 text-gray-600 text-sm">CANC</button>
+        </div>
+        <div id="pin-error" class="text-red-500 font-semibold mt-6 opacity-0 transition-opacity">PIN Errato</div>
+    </div>
+
+    <div id="admin-modal" style="display: none;" class="fixed top-0 left-0 right-0 bottom-0 bg-gray-50 z-[120] flex-col safe-padding-top safe-padding-bottom overflow-y-auto">
+        <div class="bg-blue-600 text-white px-4 py-4 flex justify-between items-center shadow-md sticky top-0">
+            <h2 class="text-xl font-bold">Modifica Turni</h2>
+            <button onclick="closeAdmin()" class="bg-blue-800 px-3 py-1.5 rounded text-sm font-bold">Chiudi</button>
+        </div>
+        
+        <div class="p-4 max-w-md mx-auto w-full">
+            <label class="block text-sm font-bold text-gray-700 mb-2">Seleziona Data da modificare:</label>
+            <input type="date" id="admin-date" onchange="loadDayForAdmin()" class="w-full bg-white border-2 border-blue-400 p-3 rounded-xl mb-6 font-bold text-gray-800 shadow-sm outline-none">
+            
+            <div id="admin-form" class="space-y-4 hidden">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <label class="flex items-center text-xs font-bold text-yellow-700 uppercase mb-1"><span class="w-3 h-3 rounded-full bg-yellow-400 mr-2"></span>Mattina (MAT)</label>
+                    <input type="text" id="admin-mat" class="w-full border-b border-gray-300 py-2 outline-none focus:border-blue-500 transition-colors" placeholder="Es. Antonio (08:00-15:00)">
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <label class="flex items-center text-xs font-bold text-teal-700 uppercase mb-1"><span class="w-3 h-3 rounded-full bg-teal-400 mr-2"></span>Intermedio (INT)</label>
+                    <input type="text" id="admin-int" class="w-full border-b border-gray-300 py-2 outline-none focus:border-blue-500 transition-colors" placeholder="Es. Claudia (11:00-18:00)">
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <label class="flex items-center text-xs font-bold text-orange-700 uppercase mb-1"><span class="w-3 h-3 rounded-full bg-orange-400 mr-2"></span>Pomeriggio (POM)</label>
+                    <input type="text" id="admin-pom" class="w-full border-b border-gray-300 py-2 outline-none focus:border-blue-500 transition-colors" placeholder="Es. Dario (14:00-21:00)">
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <label class="flex items-center text-xs font-bold text-indigo-700 uppercase mb-1"><span class="w-3 h-3 rounded-full bg-indigo-500 mr-2"></span>Sera (SER)</label>
+                    <input type="text" id="admin-ser" class="w-full border-b border-gray-300 py-2 outline-none focus:border-blue-500 transition-colors" placeholder="Es. Paolo (18:00-01:00)">
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <label class="flex items-center text-xs font-bold text-gray-700 uppercase mb-1"><span class="w-3 h-3 rounded-full bg-gray-300 mr-2"></span>Riposo (OFF)</label>
+                    <input type="text" id="admin-off" class="w-full border-b border-gray-300 py-2 outline-none focus:border-blue-500 transition-colors" placeholder="Nome di chi riposa">
+                </div>
+                
+                <button onclick="saveAdminData()" class="w-full bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4 active:scale-95 transition-transform">💾 SALVA MODIFICHE</button>
+            </div>
+            <p id="admin-msg" class="text-center text-gray-500 mt-4 text-sm font-medium">Seleziona una data per iniziare.</p>
         </div>
     </div>
 
@@ -56,20 +124,15 @@
                     <option value="2030">2030</option>
                 </select>
             </div>
-            
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <button onclick="openPin()" class="text-[10px] bg-red-500 px-2 py-1.5 rounded shadow border border-red-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    ⚙️ Admin
+                </button>
                 <button onclick="openUserSelection()" id="user-greeting" class="text-xs bg-blue-700 px-2 py-1.5 rounded border border-blue-500 font-medium whitespace-nowrap">
                     👤 Nome
                 </button>
-                <button class="relative p-1 focus:outline-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span class="absolute top-0 right-0 inline-block w-2.5 h-2.5 bg-red-500 border-2 border-blue-600 rounded-full"></span>
-                </button>
             </div>
         </div>
-        
         <div class="flex bg-blue-700 text-sm font-semibold">
             <button onclick="setView('day')" id="btn-day" class="flex-1 tab-btn text-center border-b-4 border-white transition-colors">Giorno</button>
             <button onclick="setView('week')" id="btn-week" class="flex-1 tab-btn text-center border-b-4 border-transparent text-blue-200 hover:text-white transition-colors">Settimana</button>
@@ -84,26 +147,27 @@
     </main>
 
     <button id="btn-back-today" onclick="fabGoToToday()" class="hidden fixed right-4 bg-blue-600 text-white px-5 py-3 rounded-full shadow-[0_8px_16px_rgba(37,99,235,0.4)] z-[80] transition-transform active:scale-95 flex items-center gap-2" style="bottom: max(1rem, env(safe-area-inset-bottom) + 1rem);">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
         <span class="font-bold text-sm tracking-wide">Oggi</span>
     </button>
 
     <script>
-        document.addEventListener('touchmove', function(event) {
-            if (event.scale !== 1) { event.preventDefault(); }
-        }, { passive: false });
+        // Anti zoom iOS
+        document.addEventListener('touchmove', function(event) { if (event.scale !== 1) { event.preventDefault(); } }, { passive: false });
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) { let now = (new Date()).getTime(); if (now - lastTouchEnd <= 300) { event.preventDefault(); } lastTouchEnd = now; }, false);
 
-        let realToday = new Date(2026, 3, 5); // IN PRODUZIONE Metti "new Date()"
+        let realToday = new Date(2026, 3, 5); // Cambiare in produzione
         let selectedYear = 2026;
         let generatedYear = null; 
         let currentView = 'day';
         let currentUser = null;
         let isAnimating = false; 
 
-          // --- DATABASE TURNI ---
-        const turniData = {
+        // --- GESTIONE DATI DINAMICI (Finto Database per ora) ---
+        let turniData = {};
+        
+        // I tuoi dati di base (Incolla i tuoi storici qui)
+        const datiDiDefault = {
             // Settimana 1 e 2
             "2026-04-03": { mattina: "Antonio / Dario (08:00-15:00)", pomeriggio: "Claudia (15:00-22:00)", sera: "Paolo (18:00-01:00)", off: "-" },
             "2026-04-04": { mattina: "Claudia / Dario (07:00-14:00)", pomeriggio: "Paolo (14:00-21:00)", sera: "Antonio (18:00-01:00)", off: "-" },
@@ -293,15 +357,119 @@
             "2026-09-13": { mattina: "Antonio (07:00-14:00)", pomeriggio: "Claudia (14:00-21:00)", sera: "Paolo (18:00-01:00)", off: "Dario" },
         };
 
+        // Carica dati salvati o usa default
+        function initDatabase() {
+            const salvati = localStorage.getItem('turniDB_ECH');
+            if(salvati) {
+                turniData = JSON.parse(salvati);
+            } else {
+                turniData = Object.assign({}, datiDiDefault);
+            }
+        }
+
+        // --- SISTEMA PIN ---
+        let currentPin = "";
+        const correctPin = "1234";
+
+        function openPin() {
+            currentPin = "";
+            updatePinUI();
+            document.getElementById('pin-error').style.opacity = '0';
+            document.getElementById('pin-modal').style.display = 'flex';
+        }
+        function closePin() { document.getElementById('pin-modal').style.display = 'none'; }
         
-        // ----------------------
-        // Calcola lo spazio sotto l'header
+        function pressPin(num) {
+            if(currentPin.length < 4) {
+                currentPin += num;
+                updatePinUI();
+                if(currentPin.length === 4) {
+                    setTimeout(checkPin, 150); // Piccolo delay per far vedere l'ultimo pallino pieno
+                }
+            }
+        }
+        function deletePin() {
+            if(currentPin.length > 0) {
+                currentPin = currentPin.slice(0, -1);
+                updatePinUI();
+            }
+        }
+        function updatePinUI() {
+            for(let i=1; i<=4; i++) {
+                const dot = document.getElementById('pin-' + i);
+                if(i <= currentPin.length) {
+                    dot.classList.add('bg-blue-600', 'border-blue-600');
+                    dot.classList.remove('border-gray-300');
+                } else {
+                    dot.classList.remove('bg-blue-600', 'border-blue-600');
+                    dot.classList.add('border-gray-300');
+                }
+            }
+        }
+        function checkPin() {
+            if(currentPin === correctPin) {
+                closePin();
+                openAdmin();
+            } else {
+                document.getElementById('pin-error').style.opacity = '1';
+                setTimeout(() => {
+                    currentPin = "";
+                    updatePinUI();
+                }, 500);
+            }
+        }
+
+        // --- PANNELLO ADMIN ---
+        function openAdmin() {
+            document.getElementById('admin-modal').style.display = 'flex';
+            document.getElementById('admin-date').value = getIsoDateString(realToday);
+            loadDayForAdmin();
+        }
+        function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
+
+        function loadDayForAdmin() {
+            const date = document.getElementById('admin-date').value;
+            if(!date) return;
+            
+            document.getElementById('admin-form').classList.remove('hidden');
+            document.getElementById('admin-msg').classList.add('hidden');
+
+            const t = turniData[date] || { mattina: "-", intermedio: "-", pomeriggio: "-", sera: "-", off: "-" };
+            
+            document.getElementById('admin-mat').value = t.mattina === "-" ? "" : t.mattina;
+            document.getElementById('admin-int').value = (t.intermedio && t.intermedio !== "-") ? t.intermedio : "";
+            document.getElementById('admin-pom').value = t.pomeriggio === "-" ? "" : t.pomeriggio;
+            document.getElementById('admin-ser').value = t.sera === "-" ? "" : t.sera;
+            document.getElementById('admin-off').value = t.off === "-" ? "" : t.off;
+        }
+
+        function saveAdminData() {
+            const date = document.getElementById('admin-date').value;
+            if(!date) return;
+
+            turniData[date] = {
+                mattina: document.getElementById('admin-mat').value || "-",
+                intermedio: document.getElementById('admin-int').value || "-",
+                pomeriggio: document.getElementById('admin-pom').value || "-",
+                sera: document.getElementById('admin-ser').value || "-",
+                off: document.getElementById('admin-off').value || "-"
+            };
+
+            // Salva nel finto DB
+            localStorage.setItem('turniDB_ECH', JSON.stringify(turniData));
+
+            alert("Turni salvati con successo per il " + date);
+            
+            // Forza il ricaricamento della grafica
+            generatedYear = null;
+            setView(currentView, true);
+        }
+
+        // --- UTILITY E INIZIALIZZAZIONE ---
         function adjustHeaderSpace() {
             const header = document.getElementById('main-header');
             const main = document.getElementById('app-content');
-            if(header && main) {
-                main.style.marginTop = header.offsetHeight + 'px';
-            }
+            if(header && main) main.style.marginTop = header.offsetHeight + 'px';
         }
         window.addEventListener('resize', adjustHeaderSpace);
 
@@ -316,18 +484,22 @@
             return str.charAt(0).toUpperCase() + str.slice(1);
         }
 
+        // AGGIORNATO per cercare il turno Intermedio (INT)
         function findShiftForPerson(dateIso, personName) {
             const t = turniData[dateIso];
             if (!t) return "-";
-            if (t.mattina.includes(personName)) return "MAT";
-            if (t.pomeriggio.includes(personName)) return "POM";
-            if (t.sera.includes(personName)) return "SER";
-            if (t.off.includes(personName)) return "OFF";
+            if (t.mattina && t.mattina.includes(personName)) return "MAT";
+            if (t.intermedio && t.intermedio.includes(personName)) return "INT";
+            if (t.pomeriggio && t.pomeriggio.includes(personName)) return "POM";
+            if (t.sera && t.sera.includes(personName)) return "SER";
+            if (t.off && t.off.includes(personName)) return "OFF";
             return "-";
         }
 
+        // AGGIORNATO per colorare il turno Intermedio (INT)
         function getColoredShift(shiftStr) {
             if (shiftStr === "MAT") return '<span class="text-yellow-600 font-bold">MAT</span>';
+            if (shiftStr === "INT") return '<span class="text-teal-500 font-bold">INT</span>';
             if (shiftStr === "POM") return '<span class="text-orange-500 font-bold">POM</span>';
             if (shiftStr === "SER") return '<span class="text-indigo-600 font-bold">SER</span>';
             if (shiftStr === "OFF") return '<span class="text-gray-400 font-bold text-xs">OFF</span>';
@@ -336,6 +508,7 @@
         }
 
         function checkFirstLoad() {
+            initDatabase(); // Carica i dati all'avvio
             adjustHeaderSpace();
             currentUser = localStorage.getItem('ech_user');
             if (!currentUser) {
@@ -347,37 +520,7 @@
             }
         }
 
-        function openUserSelection() {
-            document.documentElement.classList.remove('app-ready');
-            document.body.classList.remove('app-ready');
-            document.getElementById('user-modal').style.display = 'flex';
-        }
-
-        function setAppReady() {
-            document.documentElement.classList.add('app-ready');
-            document.body.classList.add('app-ready');
-        }
-
-        window.setUser = function(name) {
-            currentUser = name;
-            localStorage.setItem('ech_user', name);
-            document.getElementById('user-modal').style.display = 'none';
-            setAppReady(); 
-            updateUserUI();
-            generatedYear = null;
-            setView(currentView, true); 
-        }
-
-        function updateUserUI() {
-            document.getElementById('user-greeting').innerText = `👤 ${currentUser}`;
-        }
-
-        window.changeYear = function(year) {
-            selectedYear = parseInt(year);
-            setView(currentView);
-        }
-
-        // --- RENDER HTML ---
+        // --- RENDER HTML AGGIORNATI CON TURNO INT ---
         function renderDayHTML() {
             let html = '';
             const todayIso = getIsoDateString(realToday);
@@ -385,14 +528,27 @@
             while (d.getFullYear() === selectedYear) {
                 const dateIso = getIsoDateString(d);
                 const isToday = dateIso === todayIso;
-                const turni = turniData[dateIso] || { mattina: "-", pomeriggio: "-", sera: "-", off: "-" };
+                const turni = turniData[dateIso] || { mattina: "-", intermedio: "-", pomeriggio: "-", sera: "-", off: "-" };
                 const cardClass = isToday ? "today-card bg-white rounded-xl shadow-md p-4 mb-4" : "bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4";
                 const badge = isToday ? '<span class="ml-2 bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider">Oggi</span>' : '';
+                
                 const myShift = findShiftForPerson(dateIso, currentUser);
                 const matClass = myShift === 'MAT' ? 'bg-yellow-50 font-bold border border-yellow-200 rounded' : '';
+                const intClass = myShift === 'INT' ? 'bg-teal-50 font-bold border border-teal-200 rounded' : '';
                 const pomClass = myShift === 'POM' ? 'bg-orange-50 font-bold border border-orange-200 rounded' : '';
                 const serClass = myShift === 'SER' ? 'bg-indigo-50 font-bold border border-indigo-200 rounded' : '';
                 const offClass = myShift === 'OFF' ? 'bg-gray-100 font-bold border border-gray-300 rounded' : '';
+
+                // Verifica se nascondere o mostrare la riga INT in base ai dati
+                let intRow = '';
+                if(turni.intermedio && turni.intermedio !== "-") {
+                    intRow = `
+                    <div class="flex items-start ${intClass} p-1">
+                        <div class="bg-teal-100 text-teal-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">INT</div>
+                        <div class="flex-1 text-sm pt-0.5 text-gray-700">${turni.intermedio}</div>
+                    </div>`;
+                }
+
                 html += `
                 <div id="${isToday ? 'day-current' : 'day-' + dateIso}" class="${cardClass}">
                     <h2 class="text-lg font-bold text-gray-800 border-b pb-2 mb-3 flex items-center justify-between">
@@ -404,6 +560,7 @@
                             <div class="bg-yellow-100 text-yellow-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">MAT</div>
                             <div class="flex-1 text-sm pt-0.5 ${turni.mattina === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.mattina}</div>
                         </div>
+                        ${intRow}
                         <div class="flex items-start ${pomClass} p-1">
                             <div class="bg-orange-100 text-orange-800 rounded p-1 text-center w-12 mr-3 font-bold text-xs">POM</div>
                             <div class="flex-1 text-sm pt-0.5 ${turni.pomeriggio === '-' ? 'text-gray-300' : 'text-gray-700'}">${turni.pomeriggio}</div>
@@ -458,6 +615,7 @@
                     const isoDate = getIsoDateString(d);
                     const isToday = isoDate === todayIso;
                     const dayName = new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric' }).format(d);
+                    
                     const ag = findShiftForPerson(isoDate, "Antonio");
                     const cs = findShiftForPerson(isoDate, "Claudia");
                     const ds = findShiftForPerson(isoDate, "Dario");
@@ -502,18 +660,19 @@
                         <div>LUN</div><div>MAR</div><div>MER</div><div>GIO</div><div>VEN</div><div>SAB</div><div>DOM</div>
                     </div>
                     <div class="grid grid-cols-7 gap-1">`;
-                for (let i = 1; i < startDay; i++) {
-                    html += `<div class="p-2"></div>`;
-                }
+                for (let i = 1; i < startDay; i++) { html += `<div class="p-2"></div>`; }
                 for (let day = 1; day <= daysInMonth; day++) {
                     const loopDateIso = `${selectedYear}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const shift = findShiftForPerson(loopDateIso, currentUser);
                     const isToday = loopDateIso === todayIso;
+                    
                     let dotClass = "bg-gray-50 text-transparent"; 
                     if (shift === "MAT") dotClass = "bg-yellow-400 text-yellow-900 shadow-sm";
+                    if (shift === "INT") dotClass = "bg-teal-400 text-teal-900 shadow-sm";
                     if (shift === "POM") dotClass = "bg-orange-400 text-orange-900 shadow-sm";
                     if (shift === "SER") dotClass = "bg-indigo-500 text-white shadow-sm";
                     if (shift === "OFF") dotClass = "bg-gray-200 text-gray-600 border border-gray-300";
+                    
                     const cellStyle = isToday ? "today-cell" : "bg-white border border-gray-100 rounded-lg";
                     html += `
                     <div class="${cellStyle} p-1 flex flex-col items-center justify-center h-14 relative">
@@ -528,6 +687,7 @@
             html += `
             <div class="pt-2 pb-6 flex flex-wrap justify-center gap-3 text-xs font-semibold text-gray-600">
                 <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-400 mr-1 shadow-sm"></span> MAT</div>
+                <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-teal-400 mr-1 shadow-sm"></span> INT</div>
                 <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-400 mr-1 shadow-sm"></span> POM</div>
                 <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-indigo-500 mr-1 shadow-sm"></span> SER</div>
                 <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-gray-200 border border-gray-300 mr-1"></span> OFF</div>
@@ -535,7 +695,7 @@
             return html;
         }
 
-        // --- SISTEMA ZERO SCATTI CON FISSAGGIO ALTEZZA ---
+        // --- CORE FUNZIONI VISTA/SCROLL ---
         window.setView = function(view, forceUpdate = false) {
             if (isAnimating) return;
             if (!forceUpdate && currentView === view && generatedYear === selectedYear) return;
@@ -544,7 +704,6 @@
             currentView = view;
             const mainContent = document.getElementById('app-content');
             
-            // Fissa l'altezza per evitare che il body si accorci a zero e Safari ricalcoli lo scroll
             mainContent.style.minHeight = mainContent.offsetHeight + 'px';
             
             ['day', 'week', 'month'].forEach(v => {
@@ -587,7 +746,6 @@
                     window.scrollTo({ top: 0, behavior: 'auto' });
                 }
 
-                // Sblocca l'altezza fissa e forza il ricalcolo grafico prima di far riapparire
                 mainContent.style.minHeight = 'auto';
                 void mainContent.offsetHeight; 
 
@@ -645,7 +803,7 @@
         
         window.addEventListener('scroll', evaluateFabVisibility);
 
-        // Init App
+        // Avvio!
         checkFirstLoad();
 
     </script>
